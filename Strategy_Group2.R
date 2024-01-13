@@ -8,6 +8,8 @@ library(tseries)
 library(knitr) # for nicely looking tables in html files
 library(kableExtra) # for even more nicely looking tables in html files
 library(quantmod) # for PnL graphs
+library(lubridate)
+library(dplyr) # for if_else()
 
 # lets change the LC_TIME option to English
 Sys.setlocale("LC_TIME", "English")
@@ -85,9 +87,95 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   chart_Series(data.group2$XAU.return, theme = myTheme)
   layout(matrix(1))
   
+  ###################################################################
+  # lets formulate a spread: P1 - m * P2 (P_NASDAQ - m * P_AAPL) 
+  # where m = m1/m2 is based on average ratio between the prices
+  # on the PREVIOUS day
   
+  # spread is a signal to our model, which shows whether to take 
+  # position or not (volatility bands around the spread)
   
+  # CAUTION! we assume the mean reverting behavior of the spread!
   
+  ####################################################################
+  # lets calculate average ratio of prices on the daily basis
+  
+  index_posix <- index(data.group2)
+  time_component <- format(index_posix, format = "%H:%M:%S")
+  target_time <- "17:00:00"
+  indices <- which(time_component == target_time)
+
+  cmd.av.ratio <- period.apply(data.group2,
+                              INDEX = indices,
+                              function(x) mean(x$XAU.close/x$XAG.close, 
+                                               na.rm = TRUE)
+  )
+  
+  names(cmd.av.ratio) <- "av.ratio"
+  
+  chart_Series(cmd.av.ratio)
+  
+  # about 64-74 XAG units per each unit of XAU (future)
+  
+  head(cmd.av.ratio)
+  
+  # but calculations based on the first day
+  # will be used on the second day, etc.
+  # lets adjust the dataset accordingly
+  # by moving the time index to 18:00 of the next trading day (same day)
+  
+  index(cmd.av.ratio)
+  
+  # lets use functions from lubridate
+  # ceiling_date() rounds the date up to midnight
+  # (in fact start of the next day)
+  # hours(n), minutes(n) - create a period object
+  # with specified values
+  
+  # but some of the dates might be Fridays and in this case
+  # we would move the index to 18:00 on Sunday
+  
+  # 6 = Friday
+  
+  # lets use if_else() from dplyr instead
+  # lets apply the changes in our data object
+  
+  index(cmd.av.ratio) <- 
+    ceiling_date(index(cmd.av.ratio), "day") - 
+    hours(6) + 
+    minutes(0) +
+    if_else(wday(index(cmd.av.ratio)) == 6, 
+            days(2),
+            days(0))  
+  
+  ###################################################################
+  # alternative spread based on RETURNS:
+  # r1 - ms * r2 (r_NASDAQ - ms * r_AAPL) 
+  # where ms = s1/s2 is based on the ratio of standard
+  # deviations of returns on the PREVIOUS day
+  
+  cmd.sds.ratio <- period.apply(data.group2,
+                               INDEX = indices,
+                               function(x) sd(x$XAU.return, na.rm = TRUE) /
+                                 sd(x$XAG.return, na.rm = TRUE)
+  )
+  
+  names(cmd.sds.ratio) <- "sds.ratio"
+  
+  chart_Series(cmd.sds.ratio)
+  
+  # between 0.2 and 0.65 XAG units 
+  # per each unit of XAU (future)
+  
+  # lets move the index to 18:00 of the next trading day (same day)
+  
+  index(cmd.sds.ratio) <- 
+    ceiling_date(index(cmd.sds.ratio), "day") -
+    hours(6) + 
+    minutes(0) +
+    if_else(wday(index(cmd.sds.ratio)) == 6, 
+            days(2), 
+            days(0))
   
   
   
