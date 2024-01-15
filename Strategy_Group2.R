@@ -13,6 +13,7 @@ library(lubridate)
 library(dplyr) # for if_else()
 library(lattice) # for levelplot()
 library(grDevices) # for colorRampPalette
+library(cowplot)
 
 # lets change the LC_TIME option to English
 Sys.setlocale("LC_TIME", "English")
@@ -153,11 +154,14 @@ Sys.setenv(TZ = 'America/New_York')
 
 # do it simply in a loop on quarters
 
+heatmap_list <- list()
+sensitivities <- list()
+
 for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4", 
                            "2022_Q2", "2022_Q4", 
                            "2023_Q1", "2023_Q2")) {
   
-  selected_quarter <- "2021_Q1"
+  # selected_quarter <- "2021_Q1"
   
   message(selected_quarter)
   
@@ -184,12 +188,12 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   myTheme <- chart_theme()
   myTheme$col$line.col <- "darkblue"
   
-  layout(matrix(1:4, 2, 2))
-  chart_Series(data.group2$XAG.close, theme = myTheme)
-  chart_Series(data.group2$XAU.close, theme = myTheme)
-  chart_Series(data.group2$XAG.return, theme = myTheme)
-  chart_Series(data.group2$XAU.return, theme = myTheme)
-  layout(matrix(1))
+  # layout(matrix(1:4, 2, 2))
+  # chart_Series(data.group2$XAG.close, theme = myTheme)
+  # chart_Series(data.group2$XAU.close, theme = myTheme)
+  # chart_Series(data.group2$XAG.return, theme = myTheme)
+  # chart_Series(data.group2$XAU.return, theme = myTheme)
+  # layout(matrix(1))
   
   # the following common assumptions were defined:
   # 1.	do not use in calculations the data from the first and last 10 minutes of the session (18:01--18:10 and 16:51--17:00) – put missing values there,
@@ -332,65 +336,16 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   # plot both spreads
   
   # lets check it on the plot
-  layout(matrix(1:2, 2, 1))
-  chart_Series(data.group2b$spread_avratio, theme = myTheme)
-  abline( h = 0)
-  chart_Series(data.group2b$spread_sdsratio, theme = myTheme)
-  abline( h = 0)
-  layout(matrix(1))
+  # layout(matrix(1:2, 2, 1))
+  # chart_Series(data.group2b$spread_avratio, theme = myTheme)
+  # abline( h = 0)
+  # chart_Series(data.group2b$spread_sdsratio, theme = myTheme)
+  # abline( h = 0)
+  # layout(matrix(1))
   
   # we assume that spread mean reverts to 0,
   # which is not that clear on the top panel...
   
-  # lets apply the volatility breakout model
-  
-  # standard deviation of the spread
-  # runsd - efficient function for rolling standard deviation
-  
-  data.group2b$spread_avratio_rollsd120 <- 
-    runsd(data.group2b$spread_avratio,                                    
-          120, 
-          endrule = "NA",
-          align = "right")
-  
-  data.group2b$spread_sdsratio_rollsd120 <- 
-    runsd(data.group2b$spread_sdsratio, 
-          120, 
-          endrule = "NA",
-          align = "right")
-  
-  # lets put missings whenever XAG price is missing
-  
-  data.group2b$spread_avratio_rollsd120[is.na(data.group2b$XAG.close)] <- NA
-  data.group2b$spread_sdsratio_rollsd120[is.na(data.group2b$XAG.close)] <- NA
-  
-  #---------------------------------
-  # applying a volatility breakout model
-  # sample upper and lower bounds for spreads
-  # for a volatility multiplier of 3
-  # (here we put the upper and lower band along zero)
-  
-  data.group2b$upper <- 3 * data.group2b$spread_avratio_rollsd120
-  data.group2b$lower <- (-3 * data.group2b$spread_avratio_rollsd120)
-  
-  # lets see it on the plot
-  chart_Series(data.group2b$spread_avratio, theme = myTheme)
-  add_TA(data.group2b$upper, col = "red", on = 1)
-  add_TA(data.group2b$lower, col = "red", on = 1)
-  abline(h = 0, lty = 2, col = "gray")
-  
-  # the same for spread_sdsratio
-  
-  data.group2b$upper2 <- 3 * data.group2b$spread_sdsratio_rollsd120
-  data.group2b$lower2 <- (-3 * data.group2b$spread_sdsratio_rollsd120)
-  
-  # lets see it on the plot
-  chart_Series(data.group2b$spread_sdsratio, theme = myTheme)
-  add_TA(data.group2b$upper2, col = "red", on = 1)
-  add_TA(data.group2b$lower2, col = "red", on = 1)
-  abline(h = 0, lty = 2, col = "gray")
-  
-  ### position based on relation of the spread to volatility bands
   
   # lets assume we do not trade within the first 15-mins of the day
   # and exit all positions 15 minutes before the end of quotations
@@ -407,71 +362,123 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   
   # note this covers Fridays and Sundays as the series goes from 17:00 Friday to 17:05 Sunday
   
-  # library(data.table)
-  # 
-  # for (i in 1:nrow(pos_flat)) {
-  #   current_time <- as.ITime(index(pos_flat)[i])
-  #   
-  #   if (wday(index(pos_flat)[i]) == 6) {
-  #     pos_flat[i, ] <- ifelse(current_time >= as.ITime("16:46") & 
-  #                               current_time <= as.ITime("23:59"), 1, 0)
-  #   } else if (wday(index(pos_flat)[i]) == 1) {
-  #     pos_flat[i, ] <- ifelse(current_time >= as.ITime("00:00") & 
-  #                               current_time <= as.ITime("18:15"), 1, 0)
-  #   } else {
-  #     pos_flat[i, ] <- ifelse(current_time >= as.ITime("16:46") & 
-  #                               current_time <= as.ITime("18:15"), 1, 0)
-  #   }
-  # }
-  
   # !!! there are no weekends in our data, so we do not need 
   # to control for that in pos_flat
   
-  # lets use the positionVB_new() function from previous labs
   
-  data.group2b$pos_strategy <- positionVB_new(signal = data.group2b$spread_avratio,
-                                          lower = data.group2b$lower,
-                                          upper = data.group2b$upper,
-                                          pos_flat = pos_flat,
-                                          strategy = "mr" # important !!!
-  )
-  
-  # lets create a vector of number of transactions
-  
-  data.group2b$ntrans <- abs(diff.xts(data.group2b$pos_strategy))
-  
-  # caution !!!
-  # our strategy pnl would be position*(pnl of the spread)
-  # pnl of the spread = pos*[diff(XAU.close)*$100 - m*diff(XAG.close)*$5000]
-  
-  data.group2b$gross.pnl <- (data.group2b$pos_strategy) *
-    (diff.xts(data.group2b$XAU.close) * 100 -
-       data.group2b$av.ratio * diff.xts(data.group2b$XAG.close) * 5000)
-  # 100 is point value of XAU and 5000 is the point value of XAG so multiply by those
-  # pnl after  costs
-  # costs = $7 for XAG and $12 for XAU = (12+m*7) in total
-  # there is NO minus "-" in the costs - they are always positive !!!
-  
-  data.group2b$net.pnl <- data.group2b$gross.pnl -
-    data.group2b$ntrans * (12 + data.group2b$av.ratio * 7)
-  
-  
-  data.group2b$cum.gross.pnl <- cumsum(ifelse(is.na(data.group2b$gross.pnl),
-                                          0,
-                                          data.group2b$gross.pnl))
-  
-  data.group2b$cum.net.pnl <- cumsum(ifelse(is.na(data.group2b$net.pnl),
-                                        0,
-                                        data.group2b$net.pnl))
-  
-  # lets see if it was profitable
-  
-  chart_Series(data.group2b$cum.gross.pnl, 
-               theme = myTheme)
-  add_TA(data.group2b$cum.net.pnl, 
-         on = 1, 
-         col = "red")
-  abline(h = 0, lty = 2, col = "gray")
+  # # lets apply the volatility breakout model
+  # 
+  # # standard deviation of the spread
+  # # runsd - efficient function for rolling standard deviation
+  # 
+  # data.group2b$spread_avratio_rollsd120 <-
+  #   runsd(data.group2b$spread_avratio,
+  #         120,
+  #         endrule = "NA",
+  #         align = "right")
+  # 
+  # data.group2b$spread_sdsratio_rollsd120 <- 
+  #   runsd(data.group2b$spread_sdsratio, 
+  #         120, 
+  #         endrule = "NA",
+  #         align = "right")
+  # 
+  # # lets put missings whenever XAG price is missing
+  # 
+  # data.group2b$spread_avratio_rollsd120[is.na(data.group2b$XAG.close)] <- NA
+  # data.group2b$spread_sdsratio_rollsd120[is.na(data.group2b$XAG.close)] <- NA
+  # 
+  # #---------------------------------
+  # # applying a volatility breakout model
+  # # sample upper and lower bounds for spreads
+  # # for a volatility multiplier of 3
+  # # (here we put the upper and lower band along zero)
+  # 
+  # data.group2b$upper <- 3 * data.group2b$spread_avratio_rollsd120
+  # data.group2b$lower <- (-3 * data.group2b$spread_avratio_rollsd120)
+  # 
+  # # lets see it on the plot
+  # chart_Series(data.group2b$spread_avratio, theme = myTheme)
+  # add_TA(data.group2b$upper, col = "red", on = 1)
+  # add_TA(data.group2b$lower, col = "red", on = 1)
+  # abline(h = 0, lty = 2, col = "gray")
+  # 
+  # # the same for spread_sdsratio
+  # 
+  # data.group2b$upper2 <- 3 * data.group2b$spread_sdsratio_rollsd120
+  # data.group2b$lower2 <- (-3 * data.group2b$spread_sdsratio_rollsd120)
+  # 
+  # # lets see it on the plot
+  # chart_Series(data.group2b$spread_sdsratio, theme = myTheme)
+  # add_TA(data.group2b$upper2, col = "red", on = 1)
+  # add_TA(data.group2b$lower2, col = "red", on = 1)
+  # abline(h = 0, lty = 2, col = "gray")
+  # 
+  # ### position based on relation of the spread to volatility bands
+  # 
+  # # lets assume we do not trade within the first 15-mins of the day
+  # # and exit all positions 15 minutes before the end of quotations
+  # 
+  # # lets create a pos_flat vector and fill it with 0s
+  # pos_flat <- xts(rep(0, nrow(data.group2b)), index(data.group2b))
+  # 
+  # # we do not trade within the first quarter (18:00-18:15) 
+  # # but also before that time when session was inactive
+  # # and last quarter of the session (16:46-17:00)
+  # # but also after this time when session was inactive
+  # 
+  # pos_flat["T16:46/T18:15"] <- 1
+  # 
+  # # note this covers Fridays and Sundays as the series goes from 17:00 Friday to 17:05 Sunday
+  # 
+  # # !!! there are no weekends in our data, so we do not need 
+  # # to control for that in pos_flat
+  # 
+  # # lets use the positionVB_new() function from previous labs
+  # 
+  # data.group2b$pos_strategy <- positionVB_new(signal = data.group2b$spread_avratio,
+  #                                         lower = data.group2b$lower,
+  #                                         upper = data.group2b$upper,
+  #                                         pos_flat = pos_flat,
+  #                                         strategy = "mr" # important !!!
+  # )
+  # 
+  # # lets create a vector of number of transactions
+  # 
+  # data.group2b$ntrans <- abs(diff.xts(data.group2b$pos_strategy))
+  # 
+  # # caution !!!
+  # # our strategy pnl would be position*(pnl of the spread)
+  # # pnl of the spread = pos*[diff(XAU.close)*$100 - m*diff(XAG.close)*$5000]
+  # 
+  # data.group2b$gross.pnl <- (data.group2b$pos_strategy) *
+  #   (diff.xts(data.group2b$XAU.close) * 100 -
+  #      data.group2b$av.ratio * diff.xts(data.group2b$XAG.close) * 5000)
+  # # 100 is point value of XAU and 5000 is the point value of XAG so multiply by those
+  # # pnl after  costs
+  # # costs = $7 for XAG and $12 for XAU = (12+m*7) in total
+  # # there is NO minus "-" in the costs - they are always positive !!!
+  # 
+  # data.group2b$net.pnl <- data.group2b$gross.pnl -
+  #   data.group2b$ntrans * (12 + data.group2b$av.ratio * 7)
+  # 
+  # 
+  # data.group2b$cum.gross.pnl <- cumsum(ifelse(is.na(data.group2b$gross.pnl),
+  #                                         0,
+  #                                         data.group2b$gross.pnl))
+  # 
+  # data.group2b$cum.net.pnl <- cumsum(ifelse(is.na(data.group2b$net.pnl),
+  #                                       0,
+  #                                       data.group2b$net.pnl))
+  # 
+  # # lets see if it was profitable
+  # 
+  # chart_Series(data.group2b$cum.gross.pnl,
+  #              theme = myTheme)
+  # add_TA(data.group2b$cum.net.pnl,
+  #        on = 1,
+  #        col = "red")
+  # abline(h = 0, lty = 2, col = "gray")
   
   # lets do a comparison within a loop for spread and spread2
 
@@ -607,27 +614,75 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   # lets see the results on the heatmap graph
   
   # net.SR - spread av_ratio
-  plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
+  heatmap_sr <- plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
               col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
               col_hlabels = "m", # column name with the labels for a horizontal axis (string)
               col_variable = "net.SR", # column name with the variable to show (string)
-              main = "Sensitivity analysis for pair trading - spread based on prices ratio")
-  
-  # net.Pnl - spread av_ratio
-  plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
-              col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
-              col_hlabels = "m", # column name with the labels for a horizontal axis (string)
-              col_variable = "net.PnL", # column name with the variable to show (string)
-              main = "Sensitivity analysis for pair trading - spread based on prices ratio",
+              main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
               label_size = 3)
   
+  # net.Pnl - spread av_ratio
+  # plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
+  #             col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
+  #             col_hlabels = "m", # column name with the labels for a horizontal axis (string)
+  #             col_variable = "net.PnL", # column name with the variable to show (string)
+  #             main = "Sensitivity analysis for pair trading - spread based on prices ratio",
+  #             label_size = 3)
+  
   # av.daily.ntrans
-  plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
-              col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
-              col_hlabels = "m", # column name with the labels for a horizontal axis (string)
-              col_variable = "av.daily.ntrans", # column name with the variable to show (string)
-              main = "Sensitivity analysis for pair trading - spread based on prices ratio",
-              label_size = 4)
+  # plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
+  #             col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
+  #             col_hlabels = "m", # column name with the labels for a horizontal axis (string)
+  #             col_variable = "av.daily.ntrans", # column name with the variable to show (string)
+  #             main = "Sensitivity analysis for pair trading - spread based on prices ratio",
+  #             label_size = 3)
+  
+  sensitivities[[selected_quarter]] <- summary.pair.trading[summary.pair.trading$spread == "av.ratio",]
+  rm(summary.pair.trading)
+  
+  # collect summaries for all quarters
+  # if(!exists("heatmaps.all.group2")) heatmaps.all.group2 <- heatmap_sr else
+  #   heatmaps.all.group2 <- rbind(heatmaps.all.group2, heatmap_sr)
+  
+  heatmap_list[[selected_quarter]] <- heatmap_sr
+}
+
+# All heatmaps
+combined_plot <- plot_grid(plotlist = heatmap_list, ncol = 1, align = 'v')
+ggsave("combined_heatmaps.png", combined_plot, width = 8, height = 48)
+
+# Mean heatmap
+net_srs <- list()
+
+for(i in 1:length(sensitivities)) {
+  net_srs[[i]] <- as.list(sensitivities[[i]][c("net.SR")])[[1]]
+}
+
+average_net_sr <- sapply(seq_along(net_srs[[1]]), function(i) {
+  mean(sapply(net_srs, function(x) x[[i]]))
+})
+average_net_sr <- data.frame(net.SR = average_net_sr)
+
+sensitivities_average <- sensitivities[[1]][c("spread", "volat.sd", "m")]
+sensitivities_average <- cbind(sensitivities_average, "net.SR" = average_net_sr)
+
+heatmap_sr_mean <- plotHeatmap(data_plot = sensitivities_average, # dataset (data.frame) with calculations
+                          col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
+                          col_hlabels = "m", # column name with the labels for a horizontal axis (string)
+                          col_variable = "net.SR", # column name with the variable to show (string)
+                          main = paste("Mean", "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
+                          label_size = 3)
+
+heatmap_sr_mean
+ggsave("heatmap_sr_mean.png", heatmap_sr_mean, width = 8, height = 6)
+
+# volat.sd = 180 and m = 1 are the combination producing the largest net SR on average across in-sample quarters: 1.13
+# The main driver of this is Q2 2023
+
+
+
+
+
   
   
   
