@@ -15,6 +15,8 @@ library(lattice) # for levelplot()
 library(grDevices) # for colorRampPalette
 library(cowplot)
 
+options(scipen=999)
+
 # lets change the LC_TIME option to English
 Sys.setlocale("LC_TIME", "English")
 
@@ -155,6 +157,7 @@ Sys.setenv(TZ = 'America/New_York')
 # do it simply in a loop on quarters
 
 heatmap_list <- list()
+heatmap_list2 <- list()
 sensitivities <- list()
 
 for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4", 
@@ -609,53 +612,8 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
           quarter_stats.all.group2 <- rbind(quarter_stats.all.group2, quarter_stats)
         
         # create a plot of gross and net pnl and save it to png file
-        
-        # png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
-        #     width = 1000, height = 600)
-        # print( # when plotting in a loop you have to use print()
-        #   plot(cbind(cumsum(pnl.gross.d),
-        #              cumsum(pnl.net.d)),
-        #        multi.panel = FALSE,
-        #        main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter), 
-        #        col = c("#377EB8", "#E41A1C"),
-        #        major.ticks = "weeks", 
-        #        grid.ticks.on = "weeks",
-        #        grid.ticks.lty = 3,
-        #        legend.loc = "topleft",
-        #        cex = 1)
-        # )
-        # dev.off()
-        
-        # y_range <- range(c(cumsum(pnl.gross.d), cumsum(pnl.net.d)))
-        # 
-        # png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
-        #     width = 1000, height = 600)
-        # print( # when plotting in a loop you have to use print()
-        #   plot(cumsum(pnl.gross.d),
-        #        type = "l",
-        #        main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter),
-        #        col = "#377EB8",
-        #        xlab = "Time",
-        #        ylab = "Cumulative PnL",
-        #        ylim = y_range
-        #   )
-        # )
-        # lines(cumsum(pnl.net.d), col = "#E41A1C")
-        # legend("topleft", legend = c("Gross PnL", "Net PnL"), col = c("#377EB8", "#E41A1C"), lty = 1, cex = 1)
-        # dev.off()
-        
-        # Assuming pnl.gross.d and pnl.net.d are your data vectors
-        
-        # Calculate the overall range of the y-axis
         y_range <- range(c(cumsum(pnl.gross.d), cumsum(pnl.net.d)))
-        
-        # Set y-axis limits manually to include both positive and negative values
-        y_margin <- 0.1 * diff(y_range)  # 10% margin
-        y_limits <- c(y_range[1] - y_margin, y_range[2] + y_margin)
-        
-        # Format y-axis labels with commas
-        y_labels <- scales::comma_format()(pretty(cumsum(pnl.gross.d)))
-        
+
         png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
             width = 1000, height = 600)
         print( # when plotting in a loop you have to use print()
@@ -665,16 +623,12 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
                col = "#377EB8",
                xlab = "Time",
                ylab = "Cumulative PnL",
-               ylim = y_limits,
-               yaxt = "n"  # Suppress y-axis plotting
+               ylim = y_range
           )
         )
-        par(mar = c(5, 6, 4, 2) + 0.1)  # Adjust the left margin (parameter 2) in mar
-        axis(2, at = pretty(cumsum(pnl.gross.d)), labels = y_labels, las = 1)
         lines(cumsum(pnl.net.d), col = "#E41A1C")
         legend("topleft", legend = c("Gross PnL", "Net PnL"), col = c("#377EB8", "#E41A1C"), lty = 1, cex = 1)
         dev.off()
-        
       }
       
       # summary of a particular strategy
@@ -731,6 +685,13 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
               main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
               label_size = 3)
   
+  heatmap_sr2 <- plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "sds.ratio",], # dataset (data.frame) with calculations
+                            col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
+                            col_hlabels = "m", # column name with the labels for a horizontal axis (string)
+                            col_variable = "net.SR2", # column name with the variable to show (string)
+                            main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
+                            label_size = 3)
+  
   # net.Pnl - spread av_ratio
   # plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "av.ratio",], # dataset (data.frame) with calculations
   #             col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
@@ -755,6 +716,7 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   #   heatmaps.all.group2 <- rbind(heatmaps.all.group2, heatmap_sr)
   
   heatmap_list[[selected_quarter]] <- heatmap_sr
+  heatmap_list2[[selected_quarter]] <- heatmap_sr2
 }
 
 # All heatmaps
