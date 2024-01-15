@@ -559,6 +559,12 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
       gross.SR2 <- mySR(pnl.gross2.d, scale = 252)
       net.SR <- mySR(pnl.net.d, scale = 252)
       net.SR2 <- mySR(pnl.net2.d, scale = 252)
+      
+      gross.CR <- myCalmarRatio(pnl.gross.d, scale = 252)
+      gross.CR2 <- myCalmarRatio(pnl.gross2.d, scale = 252)
+      net.CR <- myCalmarRatio(pnl.net.d, scale = 252)
+      net.CR2 <- myCalmarRatio(pnl.net2.d, scale = 252)
+      
       gross.PnL <- sum(pnl.gross.d, na.rm = TRUE)
       gross.PnL2 <- sum(pnl.gross2.d, na.rm = TRUE)
       net.PnL <- sum(pnl.net.d, na.rm = TRUE)
@@ -566,6 +572,110 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
       
       av.daily.ntrans <- mean(ntrans.d, na.rm = TRUE)
       av.daily.ntrans2 <- mean(ntrans2.d, na.rm = TRUE) 
+      
+      stat = net.CR * max(0, log(abs(net.PnL/1000)))
+      stat2 = net.CR2 * max(0, log(abs(net.PnL2/1000)))
+      
+      # collecting all statistics for a particular quarter
+      if(volat.sd == 180 & m_ == 1) {
+        quarter_stats <- data.frame(quarter = selected_quarter,
+                                    assets.group = 2,
+                                    gross.SR,
+                                    net.SR,
+                                    gross.CR,
+                                    net.CR,
+                                    gross.PnL,
+                                    net.PnL,
+                                    av.daily.ntrans,
+                                    stat,
+                                    stringsAsFactors = FALSE
+        )
+        
+        quarter_stats2 <- data.frame(quarter = selected_quarter,
+                                    assets.group = 2,
+                                    gross.SR2,
+                                    net.SR2,
+                                    gross.CR2,
+                                    net.CR2,
+                                    gross.PnL2,
+                                    net.PnL2,
+                                    av.daily.ntrans2,
+                                    stat2,
+                                    stringsAsFactors = FALSE
+        )
+        
+        # collect summaries for all quarters
+        if(!exists("quarter_stats.all.group2")) quarter_stats.all.group2 <- quarter_stats else
+          quarter_stats.all.group2 <- rbind(quarter_stats.all.group2, quarter_stats)
+        
+        # create a plot of gross and net pnl and save it to png file
+        
+        # png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
+        #     width = 1000, height = 600)
+        # print( # when plotting in a loop you have to use print()
+        #   plot(cbind(cumsum(pnl.gross.d),
+        #              cumsum(pnl.net.d)),
+        #        multi.panel = FALSE,
+        #        main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter), 
+        #        col = c("#377EB8", "#E41A1C"),
+        #        major.ticks = "weeks", 
+        #        grid.ticks.on = "weeks",
+        #        grid.ticks.lty = 3,
+        #        legend.loc = "topleft",
+        #        cex = 1)
+        # )
+        # dev.off()
+        
+        # y_range <- range(c(cumsum(pnl.gross.d), cumsum(pnl.net.d)))
+        # 
+        # png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
+        #     width = 1000, height = 600)
+        # print( # when plotting in a loop you have to use print()
+        #   plot(cumsum(pnl.gross.d),
+        #        type = "l",
+        #        main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter),
+        #        col = "#377EB8",
+        #        xlab = "Time",
+        #        ylab = "Cumulative PnL",
+        #        ylim = y_range
+        #   )
+        # )
+        # lines(cumsum(pnl.net.d), col = "#E41A1C")
+        # legend("topleft", legend = c("Gross PnL", "Net PnL"), col = c("#377EB8", "#E41A1C"), lty = 1, cex = 1)
+        # dev.off()
+        
+        # Assuming pnl.gross.d and pnl.net.d are your data vectors
+        
+        # Calculate the overall range of the y-axis
+        y_range <- range(c(cumsum(pnl.gross.d), cumsum(pnl.net.d)))
+        
+        # Set y-axis limits manually to include both positive and negative values
+        y_margin <- 0.1 * diff(y_range)  # 10% margin
+        y_limits <- c(y_range[1] - y_margin, y_range[2] + y_margin)
+        
+        # Format y-axis labels with commas
+        y_labels <- scales::comma_format()(pretty(cumsum(pnl.gross.d)))
+        
+        png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
+            width = 1000, height = 600)
+        print( # when plotting in a loop you have to use print()
+          plot(cumsum(pnl.gross.d),
+               type = "l",
+               main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter),
+               col = "#377EB8",
+               xlab = "Time",
+               ylab = "Cumulative PnL",
+               ylim = y_limits,
+               yaxt = "n"  # Suppress y-axis plotting
+          )
+        )
+        par(mar = c(5, 6, 4, 2) + 0.1)  # Adjust the left margin (parameter 2) in mar
+        axis(2, at = pretty(cumsum(pnl.gross.d)), labels = y_labels, las = 1)
+        lines(cumsum(pnl.net.d), col = "#E41A1C")
+        legend("topleft", legend = c("Gross PnL", "Net PnL"), col = c("#377EB8", "#E41A1C"), lty = 1, cex = 1)
+        dev.off()
+        
+      }
       
       # summary of a particular strategy
       summary_ <- data.frame(spread = "av.ratio",
@@ -578,7 +688,7 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
                              net.PnL,
                              av.daily.ntrans,
                              stringsAsFactors = FALSE)
-      
+
       summary2_ <- data.frame(spread = "sds.ratio",
                               volat.sd = volat.sd,
                               m = m_,
@@ -589,16 +699,16 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
                               net.PnL = net.PnL2,
                               av.daily.ntrans = av.daily.ntrans2,
                               stringsAsFactors = FALSE)
-      
+
       # putting all summaries together
-      
+
       if(!exists("summary.pair.trading")) summary.pair.trading <- rbind(summary_, summary2_) else
         summary.pair.trading <- rbind(summary.pair.trading, summary_, summary2_)
       
       # deleting working files not needed any more
-      rm(gross.SR, gross.SR2, net.SR, net.SR2,
+      rm(gross.SR, gross.SR2, net.SR, net.SR2, net.CR, net.CR2,
          gross.PnL, gross.PnL2, net.PnL, net.PnL2,
-         av.daily.ntrans, av.daily.ntrans2,
+         av.daily.ntrans, av.daily.ntrans2, stat, stat2,
          pnl.gross.d, pnl.gross2.d, pnl.net.d, pnl.net2.d, 
          ntrans.d, ntrans2.d,
          pnl.gross, pnl.gross2, pnl.net, pnl.net2, 
@@ -678,6 +788,25 @@ ggsave("heatmap_sr_mean.png", heatmap_sr_mean, width = 8, height = 6)
 
 # volat.sd = 180 and m = 1 are the combination producing the largest net SR on average across in-sample quarters: 1.13
 # The main driver of this is Q2 2023
+# The best model run receives goes into an additional IF block above and records stats per quarter
+
+write.csv(quarter_stats.all.group2, 
+          "quarter_stats.all.group2.csv",
+          row.names = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
