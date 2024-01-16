@@ -352,18 +352,18 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   # which is not that clear on the top panel...
   
   
-  # lets assume we do not trade within the first 15-mins of the day
-  # and exit all positions 15 minutes before the end of quotations
+  # lets assume we do not trade within the first 10-mins of the day
+  # and exit all positions 10 minutes before the end of quotations
   
   # lets create a pos_flat vector and fill it with 0s
   pos_flat <- xts(rep(0, nrow(data.group2b)), index(data.group2b))
   
-  # we do not trade within the first quarter (18:00-18:15) 
+  # we do not trade within the first 10 mins (18:00-18:10) 
   # but also before that time when session was inactive
-  # and last quarter of the session (16:46-17:00)
+  # and last 10 mins of the session (16:51-17:00)
   # but also after this time when session was inactive
   
-  pos_flat["T16:46/T18:15"] <- 1
+  pos_flat["T16:51/T18:10"] <- 1
   
   # note this covers Fridays and Sundays as the series goes from 17:00 Friday to 17:05 Sunday
   
@@ -421,18 +421,18 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   # 
   # ### position based on relation of the spread to volatility bands
   # 
-  # # lets assume we do not trade within the first 15-mins of the day
-  # # and exit all positions 15 minutes before the end of quotations
+  # # lets assume we do not trade within the first 10-mins of the day
+  # # and exit all positions 10 minutes before the end of quotations
   # 
   # # lets create a pos_flat vector and fill it with 0s
   # pos_flat <- xts(rep(0, nrow(data.group2b)), index(data.group2b))
   # 
-  # # we do not trade within the first quarter (18:00-18:15) 
+  # # we do not trade within the 10 mins quarter (18:00-18:10) 
   # # but also before that time when session was inactive
-  # # and last quarter of the session (16:46-17:00)
+  # # and last 10 mins of the session (16:51-17:00)
   # # but also after this time when session was inactive
   # 
-  # pos_flat["T16:46/T18:15"] <- 1
+  # pos_flat["T16:51/T18:10"] <- 1
   # 
   # # note this covers Fridays and Sundays as the series goes from 17:00 Friday to 17:05 Sunday
   # 
@@ -760,7 +760,7 @@ heatmap_sr_mean <- plotHeatmap(data_plot = sensitivities_average, # dataset (dat
 heatmap_sr_mean
 ggsave("heatmap_sr_mean.png", heatmap_sr_mean, width = 8, height = 6)
 
-# volat.sd = 180 and m = 1 are the combination producing the largest net SR on average across in-sample quarters: 1.13
+# volat.sd = 180 and m = 1 are the combination producing the largest net SR on average across in-sample quarters: 1.14
 # The main driver of this is Q2 2023
 # The best model run receives goes into an additional IF block above and records stats per quarter
 
