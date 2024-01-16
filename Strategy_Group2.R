@@ -14,6 +14,7 @@ library(dplyr) # for if_else()
 library(lattice) # for levelplot()
 library(grDevices) # for colorRampPalette
 library(cowplot)
+library(ggplot2)
 
 options(scipen=999)
 
@@ -159,6 +160,7 @@ Sys.setenv(TZ = 'America/New_York')
 heatmap_list <- list()
 heatmap_list2 <- list()
 sensitivities <- list()
+sensitivities2 <- list()
 
 for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4", 
                            "2022_Q2", "2022_Q4", 
@@ -611,6 +613,9 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
         if(!exists("quarter_stats.all.group2")) quarter_stats.all.group2 <- quarter_stats else
           quarter_stats.all.group2 <- rbind(quarter_stats.all.group2, quarter_stats)
         
+        if(!exists("quarter_stats2.all.group2")) quarter_stats2.all.group2 <- quarter_stats2 else
+          quarter_stats2.all.group2 <- rbind(quarter_stats2.all.group2, quarter_stats2)
+        
         # create a plot of gross and net pnl and save it to png file
         y_range <- range(c(cumsum(pnl.gross.d), cumsum(pnl.net.d)))
 
@@ -685,11 +690,14 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
               main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
               label_size = 3)
   
+  # volat.sd = 180, m_ = 3.5
+  # browser()
+  #out <- summary.pair.trading
   heatmap_sr2 <- plotHeatmap(data_plot = summary.pair.trading[summary.pair.trading$spread == "sds.ratio",], # dataset (data.frame) with calculations
                             col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
                             col_hlabels = "m", # column name with the labels for a horizontal axis (string)
-                            col_variable = "net.SR2", # column name with the variable to show (string)
-                            main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on prices ratio", sep = ": "),
+                            col_variable = "net.SR", # column name with the variable to show (string)
+                            main = paste(selected_quarter, "Sensitivity analysis for pair trading - spread based on returns ratio", sep = ": "),
                             label_size = 3)
   
   # net.Pnl - spread av_ratio
@@ -709,6 +717,7 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
   #             label_size = 3)
   
   sensitivities[[selected_quarter]] <- summary.pair.trading[summary.pair.trading$spread == "av.ratio",]
+  sensitivities2[[selected_quarter]] <- summary.pair.trading[summary.pair.trading$spread == "sds.ratio",]
   rm(summary.pair.trading)
   
   # collect summaries for all quarters
@@ -722,6 +731,9 @@ for (selected_quarter in c("2021_Q1", "2021_Q3", "2021_Q4",
 # All heatmaps
 combined_plot <- plot_grid(plotlist = heatmap_list, ncol = 1, align = 'v')
 ggsave("combined_heatmaps.png", combined_plot, width = 8, height = 48)
+
+combined_plot2 <- plot_grid(plotlist = heatmap_list2, ncol = 1, align = 'v')
+ggsave("combined_heatmaps2.png", combined_plot2, width = 8, height = 48)
 
 # Mean heatmap
 net_srs <- list()
@@ -757,188 +769,29 @@ write.csv(quarter_stats.all.group2,
           row.names = FALSE)
 
 
+# Repeat for returns ratio
+net_srs2 <- list()
 
+for(i in 1:length(sensitivities2)) {
+  net_srs2[[i]] <- as.list(sensitivities2[[i]][c("net.SR")])[[1]]
+}
 
+average_net_sr2 <- sapply(seq_along(net_srs2[[1]]), function(i) {
+  mean(sapply(net_srs2, function(x) x[[i]]))
+})
+average_net_sr2 <- data.frame(net.SR = average_net_sr2)
 
+sensitivities_average2 <- sensitivities2[[1]][c("spread", "volat.sd", "m")]
+sensitivities_average2 <- cbind(sensitivities_average2, "net.SR" = average_net_sr2)
 
+heatmap_sr_mean2 <- plotHeatmap(data_plot = sensitivities_average2, # dataset (data.frame) with calculations
+                               col_vlabels = "volat.sd", # column name with the labels for a vertical axis (string)
+                               col_hlabels = "m", # column name with the labels for a horizontal axis (string)
+                               col_variable = "net.SR", # column name with the variable to show (string)
+                               main = paste("Mean", "Sensitivity analysis for pair trading - spread based on returns ratio", sep = ": "),
+                               label_size = 3)
 
+heatmap_sr_mean2
+ggsave("heatmap_sr_mean2.png", heatmap_sr_mean2, width = 8, height = 6)
 
-
-
-
-
-
-
-
-
-
-
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  # lets calculate EMA10 and EMA60 for all series
-  data.group2$XAG_EMA10 <- EMA(na.locf(data.group2$XAG), 10)
-  data.group2$XAG_EMA60 <- EMA(na.locf(data.group2$XAG), 60)
-  data.group2$XAU_EMA10 <- EMA(na.locf(data.group2$XAU), 10)
-  data.group2$XAU_EMA60 <- EMA(na.locf(data.group2$XAU), 60)
-  
-  # put missing value whenever the original price is missing
-  data.group2$XAG_EMA10[is.na(data.group2$XAG)] <- NA
-  data.group2$XAG_EMA60[is.na(data.group2$XAG)] <- NA
-  data.group2$XAU_EMA10[is.na(data.group2$XAU)] <- NA
-  data.group2$XAU_EMA60[is.na(data.group2$XAU)] <- NA
-  
-  # lets calculate the position for the MOMENTUM strategy
-  # for each asset separately
-  # if fast MA(t-1) > slow MA(t-1) => pos(t) = 1 [long]
-  # if fast MA(t-1) <= slow MA(t-1) => pos(t) = -1 [short]
-  #  caution! this strategy is always in the market !
-  
-  data.group2$position.XAG.mom <- ifelse(lag.xts(data.group2$XAG_EMA10) >
-                                           lag.xts(data.group2$XAG_EMA60),
-                                         1, -1)
-  
-  data.group2$position.XAU.mom <- ifelse(lag.xts(data.group2$XAU_EMA10) >
-                                           lag.xts(data.group2$XAU_EMA60),
-                                         1, -1)
-  
-  
-  # lets apply the remaining assumptions
-  # - exit all positions 15 minutes before the session end, i.e. at 16:45
-  # - do not trade within the first 15 minutes after the break (until 18:15)
-  
-  data.group2$position.XAG.mom[times(times_) > times("16:45:00") &
-                                 times(times_) <= times("18:15:00")] <- 0
-  
-  data.group2$position.XAU.mom[times(times_) > times("16:45:00") &
-                                 times(times_) <= times("18:15:00")] <- 0
-  
-  
-  # lets also fill every missing position with the previous one
-  data.group2$position.XAG.mom <- na.locf(data.group2$position.XAG.mom, na.rm = FALSE)
-  data.group2$position.XAU.mom <- na.locf(data.group2$position.XAU.mom, na.rm = FALSE)
-  
-  
-  # calculating gross pnl - remember to multiply by the point value !!!!
-  data.group2$pnl_gross.XAU.mom <- data.group2$position.XAU.mom * diff.xts(data.group2$XAU) * 100
-  data.group2$pnl_gross.XAG.mom <- data.group2$position.XAG.mom * diff.xts(data.group2$XAG) * 5000
-  
-  # number of transactions
-  
-  data.group2$ntrans.XAG.mom <- abs(diff.xts(data.group2$position.XAG.mom))
-  data.group2$ntrans.XAG.mom[1] <- 0
-  
-  data.group2$ntrans.XAU.mom <- abs(diff.xts(data.group2$position.XAU.mom))
-  data.group2$ntrans.XAU.mom[1] <- 0
-  
-  # net pnl
-  data.group2$pnl_net.XAG.mom <- data.group2$pnl_gross.XAG.mom  -
-    data.group2$ntrans.XAG.mom * 7 # 7$ per transaction
-  
-  data.group2$pnl_net.XAU.mom <- data.group2$pnl_gross.XAU.mom  -
-    data.group2$ntrans.XAU.mom * 12 # 12$ per transaction
-  
-  
-  # aggregate pnls and number of transactions to daily
-  my.endpoints <- endpoints(data.group2, "days")
-  
-  data.group2.daily <- period.apply(data.group2[,c(grep("pnl", names(data.group2)),
-                                                   grep("ntrans", names(data.group2)))],
-                                    INDEX = my.endpoints, 
-                                    FUN = function(x) colSums(x, na.rm = TRUE))
-  
-  # lets SUM gross and net pnls
-  
-  data.group2.daily$pnl_gross.mom <- 
-    data.group2.daily$pnl_gross.XAU.mom +
-    data.group2.daily$pnl_gross.XAG.mom
-  
-  data.group2.daily$pnl_net.mom <- 
-    data.group2.daily$pnl_net.XAU.mom +
-    data.group2.daily$pnl_net.XAG.mom
-  
-  # lets SUM number of transactions (with the same weights)
-  
-  data.group2.daily$ntrans.mom <- 
-    data.group2.daily$ntrans.XAG.mom +
-    data.group2.daily$ntrans.XAU.mom
-  
-  
-  # summarize the strategy for this quarter
-  
-  # SR
-  grossSR = mySR(x = data.group2.daily$pnl_gross.mom, scale = 252)
-  netSR = mySR(x = data.group2.daily$pnl_net.mom, scale = 252)
-  # CR
-  grossCR = myCalmarRatio(x = data.group2.daily$pnl_gross.mom, scale = 252)
-  netCR = myCalmarRatio(x = data.group2.daily$pnl_net.mom, scale = 252)
-  
-  # average number of transactions
-  av.daily.ntrades = mean(data.group2.daily$ntrans.mom, 
-                          na.rm = TRUE)
-  # PnL
-  grossPnL = sum(data.group2.daily$pnl_gross.mom)
-  netPnL = sum(data.group2.daily$pnl_net.mom)
-  
-  # stat
-  stat = netCR * max(0, log(abs(netPnL/1000)))
-  
-  # collecting all statistics for a particular quarter
-  
-  quarter_stats <- data.frame(quarter = selected_quarter,
-                              assets.group = 2,
-                              grossSR,
-                              netSR,
-                              grossCR,
-                              netCR,
-                              av.daily.ntrades,
-                              grossPnL,
-                              netPnL,
-                              stat,
-                              stringsAsFactors = FALSE
-  )
-  
-  # collect summaries for all quarters
-  if(!exists("quarter_stats.all.group2")) quarter_stats.all.group2 <- quarter_stats else
-    quarter_stats.all.group2 <- rbind(quarter_stats.all.group2, quarter_stats)
-  
-  # create a plot of gros and net pnl and save it to png file
-  
-  png(filename = paste0("pnl_group2_", selected_quarter, ".png"),
-      width = 1000, height = 600)
-  print( # when plotting in a loop you have to use print()
-    plot(cbind(cumsum(data.group2.daily$pnl_gross.mom),
-               cumsum(data.group2.daily$pnl_net.mom)),
-         multi.panel = FALSE,
-         main = paste0("Gross and net PnL for asset group 2 \n quarter ", selected_quarter), 
-         col = c("#377EB8", "#E41A1C"),
-         major.ticks = "weeks", 
-         grid.ticks.on = "weeks",
-         grid.ticks.lty = 3,
-         legend.loc = "topleft",
-         cex = 1)
-  )
-  dev.off()
-  
-  # remove all unneeded objects for group 2
-  rm(data.group2, my.endpoints, grossSR, netSR, av.daily.ntrades,
-     grossPnL, netPnL, stat, quarter_stats, data.group2.daily)
-  
-  gc()
-  
-  
-} # end of the loop
-
-write.csv(quarter_stats.all.group2, 
-          "quarter_stats.all.group2.csv",
-          row.names = FALSE)
-
+# Very low SR overall - use price ratio in quarter_stats.all.group2 instead
