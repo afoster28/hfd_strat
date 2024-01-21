@@ -92,7 +92,7 @@ This report contains sufficient R code to effectively run all the models and ana
 The working directory and quarters were defined. All quarterly data had to be stored in a subfolder called 'data' within the working directory.
 
 ```{r, warning = F, message = F}
-4setwd("C:\\Users\\afost\\Documents\\UW\\Y2\\S1\\Quantitative Strategies High Frequency Data\\hfd_strat")
+#setwd("C:\\Users\\afost\\Documents\\UW\\Y2\\S1\\Quantitative Strategies High Frequency Data\\hfd_strat")
 
 selected_quarters <- c("2021_Q1", "2021_Q3", "2021_Q4", 
   "2022_Q2", "2022_Q4", 
@@ -121,6 +121,8 @@ library(cowplot)
 options(scipen=999)
 Sys.setlocale("LC_TIME", "English")
 Sys.setenv(TZ = 'America/New_York')
+
+par(oma=c(0,0,2,0)) # allocate space for plot margins
 
 mySR <- function(x, scale) {
   sqrt(scale) * mean(coredata(x), na.rm = TRUE) / 
@@ -528,7 +530,7 @@ for (selected_quarter in selected_quarters) {
              grid.ticks.on = "weeks",
              grid.ticks.lty = 3,
              legend.loc = "topleft",
-             cex = 0.6)
+             cex = 0.3)
       )
 
       # remove all unneeded objects for group 1
@@ -1605,6 +1607,7 @@ Cumulative net P&L amounted to **$25,554** and cumulative summary statistic was 
 The optimal strategy for group 2 was volatility breakout using levels with 180 days of volatility memory and a multiplier of 1. All combinations were generally profitable, indicating going against an increasing spread between gold and silver is a good strategy. There were, however, some quarters where this was not true and the divergence continued. The combination that consistently delivered the best results generated a Sharpe ratio of **1.14**. It indicated it was worth taking a longer view of volatility and a lower multiplier, meaning whenever the signal moved relatively little outside the long-term bounds, a trading opportunity was worthwhile. There were also fewer trades per day (hence lower trading costs) with the selected strategy in group 2. The return-based volatility breakout entry and exit approach performed worse, as it was unable to identify genuine moves away from gold and silver's mean to trade against, particularly at low multiplier values when the bounds are more restrictive.
 
 ```{r, warning = F, message = F}
+options(digits=2)
 quarter_stats.all.group2
 ```
 
