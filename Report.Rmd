@@ -2,8 +2,80 @@
 title: "Report"
 author: "Adam Foster, Maciej Staniszewski"
 date: "2024-01-20"
-output: html_document
+output:
+  html_document:
+    theme: cosmo
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+    code_download: true
+    code_external: false
+    number_sections: false
+    fig_caption: true
+    df_print: paged
+    self_contained: false
 ---
+
+```{css, echo=FALSE}
+body {
+  font-family: 'Arial', sans-serif;
+  color: #333333; /* Dark grey for text */
+}
+
+h1, h2 {
+  font-weight: bold;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #00703C; /* Mint green for headers */
+}
+
+a {
+  color: #00703C; /* Mint green for links */
+}
+
+pre code.r {
+  background-color: #f7f7f7 /* Light grey for code block background */
+  padding: 5px; /* Add some padding for better readability */
+  border-radius: 5px; /* Add rounded corners */
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left: 10px solid #ccc;
+  margin: 1.5em 10px;
+  padding: 0.5em 10px;
+  quotes: "\201C""\201D""\2018""\2019";
+}
+
+blockquote:before {
+  color: #ccc;
+  content: open-quote;
+  font-size: 4em;
+  line-height: 0.1em;
+  margin-right: 0.25em;
+  vertical-align: -0.4em;
+}
+
+blockquote p {
+  display: inline;
+  font-style: italic; /* Make the quoted text italic */
+}
+
+.source {
+  float: right;
+  font-size: 80%;
+  font-style: italic;
+  color: #888888;
+}
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Approach
 For the `Quantitative Strategies on High Frequency Data` project, two sets of strategies were developed for two groups of assets.
@@ -20,7 +92,7 @@ This report contains sufficient R code to effectively run all the models and ana
 The working directory and quarters were defined. All quarterly data had to be stored in a subfolder called 'data' within the working directory.
 
 ```{r, warning = F, message = F}
-setwd("C:\\Users\\afost\\Documents\\UW\\Y2\\S1\\Quantitative Strategies High Frequency Data\\hfd_strat")
+4setwd("C:\\Users\\afost\\Documents\\UW\\Y2\\S1\\Quantitative Strategies High Frequency Data\\hfd_strat")
 
 selected_quarters <- c("2021_Q1", "2021_Q3", "2021_Q4", 
   "2022_Q2", "2022_Q4", 
@@ -456,7 +528,7 @@ for (selected_quarter in selected_quarters) {
              grid.ticks.on = "weeks",
              grid.ticks.lty = 3,
              legend.loc = "topleft",
-             cex = 1)
+             cex = 0.6)
       )
 
       # remove all unneeded objects for group 1
@@ -1543,7 +1615,7 @@ The results for the best models for groups 1 and 2 can be saved as csv - the fol
 ```{r, warning = F, message = F}
 # write.csv(quarter_stats.all.group1, 
 #           "quarter_stats.all.group1.csv",
-#           row.names = FALSE)
+#           row.names = FALSE)1
 
 # write.csv(quarter_stats.all.group2, 
 #           "quarter_stats.all.group2.csv",
