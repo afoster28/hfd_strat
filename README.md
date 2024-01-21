@@ -1,2 +1,3 @@
 # hfd_strat
-Quantitative Strategy on High Frequency Data
+Quantitative Strategies on High Frequency Data - Project
+Authors: Adam Foster, Maciej Staniszewski
