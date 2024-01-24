@@ -1651,11 +1651,7 @@ for (selected_quarter in OOS_quarters) {
   data.group2.oos <- data.group2.oos[, !colnames(data.group2.oos) %in% c("AUD","CAD")]
   names(data.group2.oos)[1:2] <- c("XAG.close","XAU.close")
   
-  data.group2.oos.return <- 10000*diff.xts(log(data.group2.oos))
-  names(data.group2.oos.return)[1:2] <- c("XAG.return","XAU.return")
-  
-  data.group2.oos <- merge(data.group2.oos[, c("XAG.close", "XAU.close")],
-                       data.group2.oos.return[, c("XAG.return", "XAU.return")])
+  data.group2.oos <- data.group2.oos[, c("XAG.close", "XAU.close")]
   
   myTheme <- chart_theme()
   myTheme$col$line.col <- "darkblue"
@@ -1667,11 +1663,9 @@ for (selected_quarter in OOS_quarters) {
   data.group2.oos["T18:01/T18:10",] <- NA 
   data.group2.oos["T16:51/T17:00",] <- NA
   
-  layout(matrix(1:4, 2, 2))
+  layout(matrix(1:2, 2, 1))
   print(chart_Series(data.group2.oos$XAG.close, theme = myTheme))
   print(chart_Series(data.group2.oos$XAU.close, theme = myTheme))
-  print(chart_Series(data.group2.oos$XAG.return, theme = myTheme))
-  print(chart_Series(data.group2.oos$XAU.return, theme = myTheme))
   layout(matrix(1))
   
   ###################################################################
@@ -1719,38 +1713,10 @@ for (selected_quarter in OOS_quarters) {
             days(2),
             days(0))  
   
-  ###################################################################
-  # alternative spread based on RETURNS:
-  # r1 - ms * r2 (r_XAU - ms * r_XAG) 
-  # where ms = s1/s2 is based on the ratio of standard
-  # deviations of returns on the PREVIOUS day
-  
-  cmd.sds.ratio <- period.apply(data.group2.oos,
-                               INDEX = indices,
-                               function(x) sd(x$XAU.return, na.rm = TRUE) /
-                                 sd(x$XAG.return, na.rm = TRUE)
-  )
-  
-  names(cmd.sds.ratio) <- "sds.ratio"
-  
-  # between 0.2 and 0.65 XAG units 
-  # per each unit of XAU (future)
-  
-  # move the index to 18:00 of the next trading day (same day)
-  
-  index(cmd.sds.ratio) <- 
-    ceiling_date(index(cmd.sds.ratio), "day") -
-    hours(6) + 
-    minutes(0) +
-    if_else(wday(index(cmd.sds.ratio)) == 6, 
-            days(2), 
-            days(0))
-  
   # merge our basic 5 min data with daily calculations
   
   data.group2b.oos <- merge(data.group2.oos,
-                    cmd.av.ratio, 
-                    cmd.sds.ratio)
+                    cmd.av.ratio)
   
   # missings in a the last 2 columns
   # which should be filled with the last non-missing value
@@ -1758,9 +1724,7 @@ for (selected_quarter in OOS_quarters) {
   
   data.group2b.oos$av.ratio <- na.locf(data.group2b.oos$av.ratio,
                                na.rm = FALSE)
-  data.group2b.oos$sds.ratio <- na.locf(data.group2b.oos$sds.ratio,
-                                na.rm = FALSE)
-  
+
   # exclude weekends from data
   
   table(wday(data.group2b.oos))
@@ -1771,10 +1735,6 @@ for (selected_quarter in OOS_quarters) {
   data.group2b.oos$spread_avratio <- 
     data.group2b.oos$XAU.close -
     data.group2b.oos$av.ratio * data.group2b.oos$XAG.close
-  
-  data.group2b.oos$spread_sdsratio <- 
-    data.group2b.oos$XAU.return - 
-    data.group2b.oos$sds.ratio * data.group2b.oos$XAG.return
   
   # assume we do not trade within the first 10-mins of the day
   # and exit all positions 10 minutes before the end of quotations
@@ -1804,8 +1764,7 @@ for (selected_quarter in OOS_quarters) {
       XAG_price <- coredata(data.group2b.oos$XAG.close)
       
       signal <- coredata(data.group2b.oos$spread_avratio)
-      signal2 <- coredata(data.group2b.oos$spread_sdsratio)
-      
+
       upper <- m_ * runsd(signal, volat.sd, 
                           endrule = "NA", 
                           align = "right")
@@ -1813,79 +1772,48 @@ for (selected_quarter in OOS_quarters) {
                            endrule = "NA", 
                            align = "right")
       
-      upper2 <- m_ * runsd(signal2, volat.sd, 
-                           endrule = "NA", 
-                           align = "right")
-      lower2 <- -m_ * runsd(signal2, volat.sd, 
-                            endrule = "NA", 
-                            align = "right")
-      
       # position for mean-reverting strategy
       pos.mr <- positionVB_new(signal, lower, upper,
                                pos_flat = pos_flat,
                                strategy = "mr"
       )
-      pos.mr2 <- positionVB_new(signal2, lower2, upper2,
-                                pos_flat = pos_flat,
-                                strategy = "mr"
-      )
       # number of transactions
       ntrans <- abs(diff.xts(pos.mr))
-      ntrans2 <- abs(diff.xts(pos.mr2))
-      
+
       # gross pnl
       gross.pnl <- (pos.mr) *
         (diff.xts(XAU_price) * 100 # point value for XAU
          - coredata(data.group2b.oos$av.ratio) * diff.xts(XAG_price) * 5000) # point value for XAG
-      
-      gross.pnl2 <- (pos.mr2) *
-        (diff.xts(XAU_price) * 100  # point value for XAU
-         - coredata(data.group2b.oos$sds.ratio) * diff.xts(XAG_price) * 5000) # point value for XAG
-      
+
       # pnl after  costs
       # costs = $7 for XAG and $12 for XAU = (12+m*7) in total
       # costs are always positive
       
       net.pnl <- gross.pnl - ntrans * (12 + coredata(data.group2b.oos$av.ratio) * 7)
-      net.pnl2 <- gross.pnl2 - ntrans2 * (12 + coredata(data.group2b.oos$sds.ratio) * 7)
-      
+
       # aggregate to daily
 
       pnl.gross.d <- period.apply(gross.pnl, INDEX = indices, 
                                   FUN = function(x) sum(x, na.rm = TRUE))
-      pnl.gross2.d <- period.apply(gross.pnl2, INDEX = indices, 
-                                   FUN = function(x) sum(x, na.rm = TRUE))
       pnl.net.d <- period.apply(net.pnl, INDEX = indices,
                                 FUN = function(x) sum(x, na.rm = TRUE))
-      pnl.net2.d <- period.apply(net.pnl2, INDEX = indices,
-                                 FUN = function(x) sum(x, na.rm = TRUE))
       ntrans.d <- period.apply(ntrans, INDEX = indices, 
                                FUN = function(x) sum(x, na.rm = TRUE))
-      ntrans2.d <- period.apply(ntrans2, INDEX = indices, 
-                                FUN = function(x) sum(x, na.rm = TRUE))
-      
+
       # calculate summary measures
       gross.SR <- mySR(pnl.gross.d, scale = 252)
-      gross.SR2 <- mySR(pnl.gross2.d, scale = 252)
       net.SR <- mySR(pnl.net.d, scale = 252)
-      net.SR2 <- mySR(pnl.net2.d, scale = 252)
-      
+
       gross.CR <- myCalmarRatio(pnl.gross.d, scale = 252)
-      gross.CR2 <- myCalmarRatio(pnl.gross2.d, scale = 252)
       net.CR <- myCalmarRatio(pnl.net.d, scale = 252)
-      net.CR2 <- myCalmarRatio(pnl.net2.d, scale = 252)
-      
+
       gross.PnL <- sum(pnl.gross.d, na.rm = TRUE)
-      gross.PnL2 <- sum(pnl.gross2.d, na.rm = TRUE)
       net.PnL <- sum(pnl.net.d, na.rm = TRUE)
-      net.PnL2 <- sum(pnl.net2.d, na.rm = TRUE)
-      
+
       av.daily.ntrans <- mean(ntrans.d, na.rm = TRUE)
-      av.daily.ntrans2 <- mean(ntrans2.d, na.rm = TRUE) 
-      
+
       stat = net.CR * max(0, log(abs(net.PnL/1000)))
-      stat2 = net.CR2 * max(0, log(abs(net.PnL2/1000)))
-      
+
       # collecting all statistics for a particular quarter
       if(volat.sd == 180 & m_ == 1) {
         quarter_stats <- data.frame(quarter = selected_quarter,
@@ -1900,20 +1828,7 @@ for (selected_quarter in OOS_quarters) {
                                     stat,
                                     stringsAsFactors = FALSE
         )
-        
-        quarter_stats2 <- data.frame(quarter = selected_quarter,
-                                    assets.group = 2,
-                                    gross.SR2,
-                                    net.SR2,
-                                    gross.CR2,
-                                    net.CR2,
-                                    gross.PnL2,
-                                    net.PnL2,
-                                    av.daily.ntrans2,
-                                    stat2,
-                                    stringsAsFactors = FALSE
-        )
-        
+  
         # collect summaries for all quarters
         if(!exists("quarter_stats.all.group2.oos")) quarter_stats.all.group2.oos <- quarter_stats else
           quarter_stats.all.group2.oos <- rbind(quarter_stats.all.group2.oos, quarter_stats)
@@ -1947,33 +1862,22 @@ for (selected_quarter in OOS_quarters) {
                              av.daily.ntrans,
                              stringsAsFactors = FALSE)
 
-      summary2_ <- data.frame(spread = "sds.ratio",
-                              volat.sd = volat.sd,
-                              m = m_,
-                              period = selected_quarter, # "2016-08-16 - 2016-11",
-                              gross.SR = gross.SR2,
-                              net.SR = net.SR2,
-                              gross.PnL = gross.PnL2,
-                              net.PnL = net.PnL2,
-                              av.daily.ntrans = av.daily.ntrans2,
-                              stringsAsFactors = FALSE)
-
       # putting all summaries together
 
-      if(!exists("summary.pair.trading")) summary.pair.trading <- rbind(summary_, summary2_) else
-        summary.pair.trading <- rbind(summary.pair.trading, summary_, summary2_)
+      if(!exists("summary.pair.trading")) summary.pair.trading <- summary_ else
+        summary.pair.trading <- rbind(summary.pair.trading, summary_)
       
       # deleting working files not needed any more
-      rm(gross.SR, gross.SR2, net.SR, net.SR2, net.CR, net.CR2,
-         gross.PnL, gross.PnL2, net.PnL, net.PnL2,
-         av.daily.ntrans, av.daily.ntrans2, stat, stat2,
-         pnl.gross.d, pnl.gross2.d, pnl.net.d, pnl.net2.d, 
-         ntrans.d, ntrans2.d,
-         pnl.gross, pnl.gross2, pnl.net, pnl.net2, 
-         ntrans, ntrans2,
-         pos.mr, pos.mr2, summary_, summary2_,
+      rm(gross.SR, net.SR, net.CR,
+         gross.PnL, net.PnL,
+         av.daily.ntrans, stat,
+         pnl.gross.d, pnl.net.d, 
+         ntrans.d,
+         pnl.gross, pnl.net, 
+         ntrans,
+         pos.mr, summary_,
          XAU_price, XAG_price,
-         signal, signal2, lower, lower2, upper, upper2)
+         signal, lower, upper)
       
     } # end of loop for m_
   } # end of loop for volatility  
@@ -1983,9 +1887,9 @@ for (selected_quarter in OOS_quarters) {
 ```
 
 ## Performance
-Group 1 performed worse on out-of-sample data, producing an average Sharpe ratio of -0.37, cumulative net P&L of -$4,375 and cumulative summary statistic of 10.3. The result was reflective of changing market environment and therefore asset price shortly after the relatively long EMA days used in the signal, as well meaningful trading costs.
+Group 1 performed worse on out-of-sample data, producing an average Sharpe ratio of **-0.37**, cumulative net P&L of **-$4,375** and cumulative summary statistic of **10.3**. The result was reflective of changing market environment and therefore asset price shortly after the relatively long EMA days used in the signal, as well meaningful trading costs.
 
-Group 2 repeated its strong performance on out-of-sample data, producing an average Sharpe ratio of 1.13, cumulative net P&L of $2,928,157 and cumulative summary statistic of 133.0. This indicated successful reversion of the gold-silver spread towards its long-term trend, even at low divergence levels. Trading frequency was also low, thus incurring relatively lower costs.
+Group 2 repeated its strong performance on out-of-sample data, producing an average Sharpe ratio of **1.13**, cumulative net P&L of **$2,928,157** and cumulative summary statistic of **133.0**. This indicated successful reversion of the gold-silver spread towards its long-term trend, even at low divergence levels. Trading frequency was also low, thus incurring relatively lower costs.
 
 Overall, the performance of Group 2 rendered overall results satisfactory, generating a substantial P&L and good reward to risk trade-off.
 
