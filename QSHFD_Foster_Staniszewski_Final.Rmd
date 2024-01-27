@@ -3,19 +3,22 @@ title: "Quantitative Strategies on High Frequency Data - Project"
 author: "Adam Foster, Maciej Staniszewski"
 date: "2024-01-20"
 output:
+  word_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     theme: cosmo
     highlight: haddock
-    toc: true
+    toc: yes
     toc_depth: 3
-    toc_float: true
+    toc_float: yes
     code_folding: show
-    code_download: true
-    code_external: false
-    number_sections: false
-    fig_caption: true
+    code_download: yes
+    code_external: no
+    number_sections: no
+    fig_caption: yes
     df_print: paged
-    self_contained: false
+    self_contained: no
 ---
 
 ```{css, echo=FALSE}
