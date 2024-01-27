@@ -16,6 +16,7 @@ output:
     fig_caption: true
     df_print: paged
     self_contained: false
+  word_document:
 ---
 
 ```{css, echo=FALSE}
